@@ -21,16 +21,6 @@ jobs:
       - name: Przygotowanie klucza
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
-          echo "keyStore.file=../keystore.jks" > keystore.properties
-          echo "keyStore.password=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
-          echo "keyStore.keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
-          echo "keyStore.keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
-          echo "storeFile=../keystore.jks" >> keystore.properties
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
-          cp keystore.properties app/keystore.properties
-          cp keystore.jks app/keystore.jks
 
       - name: Nadanie uprawnien gradlew
         run: chmod +x gradlew
@@ -38,8 +28,14 @@ jobs:
       - name: Kompilacja APK
         run: ./gradlew :app:assembleFullRelease --no-daemon -x verifyFullReleaseResources
 
-      - name: Zapisanie gotowej aplikacji APK
+      - name: Podpisanie APK
+        run: |
+          APK_RAW=$(find app/build/outputs/apk/ -name "*.apk" | head -n 1)
+          $ANDROID_HOME/build-tools/34.0.0/zipalign -v -p 4 "$APK_RAW" aligned.apk || cp "$APK_RAW" aligned.apk
+          $ANDROID_HOME/build-tools/34.0.0/apksigner sign --ks keystore.jks --ks-pass "pass:${{ secrets.KEYSTORE_PASSWORD }}" --ks-key-alias "${{ secrets.KEY_ALIAS }}" --key-pass "pass:${{ secrets.KEY_PASSWORD }}" --out AndroidAPS-Gotowy.apk aligned.apk
+
+      - name: Zapisanie APK
         uses: actions/upload-artifact@v4
         with:
           name: AndroidAPS-Gotowa-Aplikacja
-          path: app/build/outputs/apk/**/*.apk
+          path: AndroidAPS-Gotowy.apk
