@@ -8,9 +8,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Pobieranie kodu wersji 3.4.2.2
+      - name: Pobieranie kodu wersji 3.4.2.2 z oficjalnego repozytorium
         uses: actions/checkout@v4
         with:
+          repository: 'nightscout/AndroidAPS'
           ref: '3.4.2.2'
 
       - name: Ustawienie Java 21
