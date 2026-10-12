@@ -8,37 +8,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Pobieranie kodu wersji 3.4.2.2 z oficjalnego repozytorium
+      - name: Pobieranie sprawdzonej wersji 3.3.2.1
         uses: actions/checkout@v4
         with:
           repository: 'nightscout/AndroidAPS'
-          ref: '3.4.2.2'
+          ref: '3.3.2.1'
 
-      - name: Ustawienie Java 21
+      - name: Ustawienie Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '17'
           cache: 'gradle'
 
-      - name: Przygotowanie klucza
+      - name: Usuniecie blokady czasowej (Brak wygasania)
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
+          find . -type f \( -name "*.kt" -o -name "*.java" \) -exec sed -i 's/val endOfLife = .*/val endOfLife = Long.MAX_VALUE/g' {} + 2>/dev/null || true
+          find . -type f \( -name "*.kt" -o -name "*.java" \) -exec sed -i 's/val isExpired = .*/val isExpired = false/g' {} + 2>/dev/null || true
 
-      - name: Nadanie uprawnien gradlew
-        run: chmod +x gradlew
+          - name: Przygotowanie klucza
+            run: |
+              echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
 
-      - name: Kompilacja APK (3.4.2.2)
-        run: ./gradlew :app:assembleFullRelease --no-daemon -x verifyFullReleaseResources
+          - name: Nadanie uprawnien gradlew
+            run: chmod +x gradlew
 
-      - name: Podpisanie APK
-        run: |
-          APK_RAW=$(find app/build/outputs/apk/ -name "*.apk" | head -n 1)
-          $ANDROID_HOME/build-tools/34.0.0/zipalign -v -p 4 "$APK_RAW" aligned.apk || cp "$APK_RAW" aligned.apk
-          $ANDROID_HOME/build-tools/34.0.0/apksigner sign --ks keystore.jks --ks-pass "pass:${{ secrets.KEYSTORE_PASSWORD }}" --ks-key-alias "${{ secrets.KEY_ALIAS }}" --key-pass "pass:${{ secrets.KEY_PASSWORD }}" --out AndroidAPS-3.4.2.2.apk aligned.apk
+          - name: Kompilacja APK (Wersja 3.3.2.1)
+            run: ./gradlew :app:assembleFullRelease --no-daemon
 
-      - name: Zapisanie gotowego APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: AndroidAPS-3.4.2.2-Gotowa
-          path: AndroidAPS-3.4.2.2.apk
+          - name: Podpisanie APK nowym kluczem
+            run: |
+              APK_RAW=$(find app/build/outputs/apk/ -name "*.apk" | head -n 1)
+              $ANDROID_HOME/build-tools/34.0.0/zipalign -v -p 4 "$APK_RAW" aligned.apk || cp "$APK_RAW" aligned.apk
+              $ANDROID_HOME/build-tools/34.0.0/apksigner sign --ks keystore.jks --ks-pass "pass:${{ secrets.KEYSTORE_PASSWORD }}" --ks-key-alias "${{ secrets.KEY_ALIAS }}" --key-pass "pass:${{ secrets.KEY_PASSWORD }}" --out AndroidAPS-3.3.2.1-BezLimitu.apk aligned.apk
+
+          - name: Zapisanie gotowego APK
+            uses: actions/upload-artifact@v4
+            with:
+              name: AndroidAPS-3321-BezLimitu
+              path: AndroidAPS-3.3.2.1-BezLimitu.apk
